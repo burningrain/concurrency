@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,6 +14,54 @@ import java.util.stream.Collectors;
  * Created by burningrain on 07.10.2018.
  */
 public class BacklogTest {
+
+    @Test
+    public void testTakeResultOnlyAfterEvent() {
+        Backlog<String> backlog = new Backlog();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nowPlusTenSec = now.plus(10, ChronoUnit.SECONDS);
+
+        MockCallable mockCallable = new MockCallable("событие в будущем");
+        backlog.add(nowPlusTenSec, mockCallable);
+        Backlog.Result<String> result = backlog.takeSoon(now);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.getBeforeAndNowEvents().isEmpty());
+
+        Event<String> afterEvent = result.getAfterEvent();
+        Assert.assertNotNull(afterEvent);
+        Assert.assertEquals(nowPlusTenSec, afterEvent.getTime());
+        Assert.assertEquals(mockCallable, afterEvent.getCallable());
+    }
+
+    @Test
+    public void testTakeResultWithBeforeEventsAndAfterEvent() {
+        Backlog<String> backlog = new Backlog();
+        LocalDateTime now = LocalDateTime.now();
+
+        LocalDateTime nowMinusTenSec = now.minus(10, ChronoUnit.SECONDS);
+        int beforeEventsCount = 4;
+        for(int i = 0; i < beforeEventsCount; i++) {
+            backlog.add(nowMinusTenSec, new MockCallable("событие в прошлом или настоящем"));
+        }
+
+        LocalDateTime nowPlusTenSec = now.plus(10, ChronoUnit.SECONDS);
+        MockCallable[] mockCallables = new MockCallable[]{new MockCallable("событие в будущем 1"), new MockCallable("событие в будущем 2")};
+        for(int i = 0; i < 2; i++) {
+            backlog.add(nowPlusTenSec, mockCallables[i]);
+        }
+
+        Backlog.Result<String> result = backlog.takeSoon(now);
+        Assert.assertNotNull(result);
+
+        Collection<Event<String>> beforeAndNowEvents = result.getBeforeAndNowEvents();
+        Assert.assertEquals(beforeEventsCount, beforeAndNowEvents.size());
+
+        Event<String> afterEvent = result.getAfterEvent();
+        Assert.assertNotNull(afterEvent);
+        Assert.assertEquals(nowPlusTenSec, afterEvent.getTime());
+        Assert.assertEquals(mockCallables[0], afterEvent.getCallable());
+    }
 
     @Test
     public void testTakeSoonEventsInOrderOfTime() {
@@ -49,7 +98,7 @@ public class BacklogTest {
     }
 
     private static List<String> takeResultFromBacklog(Backlog<String> backlog, LocalDateTime now) {
-        return backlog.takeSoon(now).stream().map(event -> {
+        return backlog.takeSoon(now).getBeforeAndNowEvents().stream().map(event -> {
             try {
                 return event.getCallable().call();
             } catch (Exception e) {

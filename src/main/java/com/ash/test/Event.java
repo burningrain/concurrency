@@ -9,8 +9,8 @@ import java.util.concurrent.Callable;
 public class Event<V> implements Comparable<Event<V>> {
 
     private final int number;
-    private LocalDateTime time;
-    private Callable<V> callable;
+    private final LocalDateTime time;
+    private final Callable<V> callable;
 
     public Event(int number, LocalDateTime time, Callable<V> callable) {
         if(number < 0) {

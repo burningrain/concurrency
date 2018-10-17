@@ -8,9 +8,6 @@ import java.util.concurrent.Callable;
  */
 public interface SomeSystem<T> {
 
-    void addToBacklog(LocalDateTime time, Callable<T> task);
+    void addEventAndHandleBacklog(LocalDateTime time, Callable<T> task);
 
-    void start();
-
-    void stop();
 }
